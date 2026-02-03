@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>飲食店 横断検索リンク生成</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; line-height: 1.5; margin: 24px; }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    input[type="text"] { padding: 10px 12px; min-width: min(560px, 100%); font-size: 16px; }
+    button { padding: 10px 12px; font-size: 14px; cursor: pointer; }
+    .sites { margin: 14px 0 10px; display: grid; gap: 8px; }
+    .sites label { display: flex; gap: 8px; align-items: center; }
+    .note { color: #555; font-size: 12px; margin-top: 6px; }
+    ul { padding-left: 18px; }
+    li { margin: 6px 0; }
+    .muted { color:#666; font-size: 12px; }
+    .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <h1>飲食店 横断検索リンク生成</h1>
+
+  <div class="row">
+    <input id="q" type="text" placeholder="店名を入力（例：〇〇食堂）" />
+    <button id="gen">リンク生成</button>
+    <button id="openAll" title="ブラウザのポップアップブロックにより止まることがあります">全部をタブで開く</button>
+  </div>
+  <div class="note">※「全部をタブで開く」は環境によってブロックされるので、基本は下のリンクをクリックしてください。</div>
+
+  <div class="box">
+    <div class="muted">検索先（チェックしたものだけリンク生成）</div>
+    <div id="sites" class="sites"></div>
+  </div>
+
+  <div class="box">
+    <div class="muted">生成リンク</div>
+    <ul id="out"></ul>
+  </div>
+
+<script>
+  const enc = (s) => encodeURIComponent((s ?? "").trim());
+
+  // --- サイト定義（ここを増やせば対応サイトを拡張できます） ---
+  const SITES = [
+    // 食べログ：検索パラメータ sk / sw を利用（仕様変更の可能性あり）
+    { id: "tabelog", label: "食べログ（サイト内検索）",
+      build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
+
+    // ぐるなび：fw（フリーワード）で検索
+    { id: "gnavi", label: "ぐるなび（サイト内検索）",
+      build: (q) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(q)}` },
+
+    // ホットペッパー：店名の“直URL検索”は仕様が変わりやすいので Google site: を採用
+    { id: "hotpepper", label: "ホットペッパー（Google site:）",
+      build: (q) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${q}`)}` },
+
+    // Googleマップ：公式の Maps URLs 検索
+    { id: "gmap", label: "Googleマップ",
+      build: (q) => `https://www.google.com/maps/search/?api=1&query=${enc(q)}` },
+
+    // 例：他サイトも足せます（必要なら有効化）
+    // { id: "retty", label: "Retty（Google site:）",
+    //   build: (q) => `https://www.google.com/search?q=${enc(`site:retty.me ${q}`)}` },
+  ];
+
+  const $sites = document.getElementById("sites");
+  const $q = document.getElementById("q");
+  const $out = document.getElementById("out");
+
+  // チェックボックス生成
+  for (const s of SITES) {
+    const label = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.dataset.siteId = s.id;
+
+    const span = document.createElement("span");
+    span.textContent = s.label;
+
+    label.appendChild(cb);
+    label.appendChild(span);
+    $sites.appendChild(label);
+  }
+
+  function selectedSites() {
+    const checkedIds = new Set([...$sites.querySelectorAll("input[type=checkbox]:checked")]
+      .map(cb => cb.dataset.siteId));
+    return SITES.filter(s => checkedIds.has(s.id));
+  }
+
+  function generateLinks() {
+    const q = $q.value.trim();
+    $out.innerHTML = "";
+    if (!q) return [];
+
+    const links = selectedSites().map(s => ({ label: s.label, url: s.build(q) }));
+
+    for (const item of links) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = item.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = item.label;
+      li.appendChild(a);
+
+      const small = document.createElement("div");
+      small.className = "muted";
+      small.textContent = item.url;
+      li.appendChild(small);
+
+      $out.appendChild(li);
+    }
+    return links;
+  }
+
+  document.getElementById("gen").addEventListener("click", generateLinks);
+  document.getElementById("openAll").addEventListener("click", () => {
+    const links = generateLinks();
+    // ユーザー操作（クリック）中に open するので、比較的ブロックされにくいが、環境依存
+    for (const l of links) window.open(l.url, "_blank", "noopener,noreferrer");
+  });
+
+  // Enterでも生成
+  $q.addEventListener("keydown", (e) => { if (e.key === "Enter") generateLinks(); });
+</script>
+</body>
+</html>
