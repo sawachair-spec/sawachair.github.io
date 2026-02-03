@@ -17,6 +17,7 @@
     li { margin: 6px 0; }
     .muted { color:#666; font-size: 12px; }
     .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 14px; }
+    .urltext { display: none; }
   </style>
 </head>
 <body>
@@ -135,7 +136,7 @@ const SITES = [
       li.appendChild(a);
 
       const small = document.createElement("div");
-      small.className = "muted";
+      small.className = "urltext";
       small.textContent = item.url;
       li.appendChild(small);
 
