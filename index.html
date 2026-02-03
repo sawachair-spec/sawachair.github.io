@@ -52,13 +52,13 @@ const normalizeHashtag = (s) =>
 
 // --- サイト定義（ここを増やすとチェックボックスも増えます） ---
 const SITES = [
-  { id: "tabelog", label: "食べログ（サイト内検索）",
-    build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
+  { id: "tabelog", label: "食べログ",
+     build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
 
-  { id: "gnavi", label: "ぐるなび（サイト内検索）",
+  { id: "gnavi", label: "ぐるなび",
     build: (q) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(q)}` },
 
-  { id: "hotpepper", label: "ホットペッパー（Google site:）",
+  { id: "hotpepper", label: "ホットペッパー",
     build: (q) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${q}`)}` },
 
   { id: "gmap", label: "Googleマップ",
@@ -68,15 +68,15 @@ const SITES = [
   build: (q) => `https://map.yahoo.co.jp/search?q=${enc(q)}` },
 
   // 追加① くふうトリップ（旧RETRIP相当）：安定重視で site: 検索
-  { id: "kufu_trip", label: "くふうトリップ（Google site:）",
+  { id: "kufu_trip", label: "くふうトリップ",
     build: (q) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${q}`)}` },
 
   // 追加② TripAdvisor：安定重視で site: 検索
-  { id: "tripadvisor", label: "TripAdvisor（Google site:）",
+  { id: "tripadvisor", label: "TripAdvisor",
     build: (q) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${q}`)}` },
 
   // 追加③ Retty：site: 検索
-  { id: "retty", label: "Retty（Google site:）",
+  { id: "retty", label: "Retty",
     build: (q) => `https://www.google.com/search?q=${enc(`site:retty.me ${q}`)}` },
 
   // 追加④ Instagram：ハッシュタグページを直接開く
@@ -88,7 +88,7 @@ const SITES = [
     } },
 
   // 保険：InstagramをGoogleで #検索（タグ化が合わない店名対策）
-  { id: "instagram_google_tag", label: "Instagram（Googleで #検索）",
+  { id: "instagram_google_tag", label: "Instagram（Google検索）",
     build: (q) => `https://www.google.com/search?q=${enc(`site:instagram.com "#${q}"`)}` },
 ];
 
