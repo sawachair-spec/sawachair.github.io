@@ -44,6 +44,46 @@
 
   // --- サイト定義（ここを増やせば対応サイトを拡張できます） ---
   const SITES = [
+    // ハッシュタグ用：#や空白などをざっくり除去（必要ならルール追加OK）
+const normalizeHashtag = (s) =>
+  (s ?? "")
+    .trim()
+    .replace(/[＃#]/g, "")
+    .replace(/\s+/g, "")     // 半角/全角スペースを除去
+    .replace(/[・.]/g, "");  // 例: 「店名・本店」対策（必要なら）
+
+// --- SITES 配列にこの4つを追加 ---
+{
+  id: "kufu_trip",
+  label: "くふうトリップ（Google site:）",
+  build: (q) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${q}`)}`
+},
+{
+  id: "tripadvisor",
+  label: "TripAdvisor（Google site:）",
+  build: (q) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${q}`)}`
+},
+{
+  id: "retty",
+  label: "Retty（Google site:）",
+  build: (q) => `https://www.google.com/search?q=${enc(`site:retty.me ${q}`)}`
+},
+{
+  id: "instagram_hashtag",
+  label: "Instagram（#ハッシュタグ）",
+  build: (q) => {
+    const tag = normalizeHashtag(q);
+    // タグが空になったらフォールバック（Google）
+    if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${q}`)}`;
+    return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
+  }
+},
+// （任意）Instagramの“検索結果”が欲しいときの保険：Googleで #付き検索
+{
+  id: "instagram_google_tag",
+  label: "Instagram（Googleで #検索）",
+  build: (q) => `https://www.google.com/search?q=${enc(`site:instagram.com "#${q}"`)}`
+},
     // 食べログ：検索パラメータ sk / sw を利用（仕様変更の可能性あり）
     { id: "tabelog", label: "食べログ（サイト内検索）",
       build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
