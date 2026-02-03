@@ -24,11 +24,9 @@
   <h1>グルメ横断検索くん</h1>
 
   <div class="row">
-    <input id="q" type="text" placeholder="店名を入力（例：〇〇食堂）" />
+    <input id="q" type="text" placeholder="店名を入力（例：〇〇食堂、必要に応じて地域）" />
     <button id="gen">リンク生成</button>
-    <button id="openAll" title="ブラウザのポップアップブロックにより止まることがあります">全部をタブで開く</button>
   </div>
-  <div class="note">※「全部をタブで開く」は環境によってブロックされるので、基本は下のリンクをクリックしてください。</div>
 
   <div class="box">
     <div class="muted">検索先（チェックしたものだけリンク生成）</div>
@@ -146,11 +144,7 @@ const SITES = [
   }
 
   document.getElementById("gen").addEventListener("click", generateLinks);
-  document.getElementById("openAll").addEventListener("click", () => {
-    const links = generateLinks();
-    // ユーザー操作（クリック）中に open するので、比較的ブロックされにくいが、環境依存
-    for (const l of links) window.open(l.url, "_blank", "noopener,noreferrer");
-  });
+  
 
   // Enterでも生成
   $q.addEventListener("keydown", (e) => { if (e.key === "Enter") generateLinks(); });
