@@ -42,28 +42,52 @@
 <script>
   const enc = (s) => encodeURIComponent((s ?? "").trim());
 
-  // --- サイト定義（ここを増やせば対応サイトを拡張できます） ---
-  const SITES = [
-    // 食べログ：検索パラメータ sk / sw を利用（仕様変更の可能性あり）
-    { id: "tabelog", label: "食べログ（サイト内検索）",
-      build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
+// ハッシュタグ用：#や空白などを除去してタグ化
+const normalizeHashtag = (s) =>
+  (s ?? "")
+    .trim()
+    .replace(/[＃#]/g, "")
+    .replace(/\s+/g, "")     // スペース除去
+    .replace(/[・.]/g, "");  // 必要なら調整
 
-    // ぐるなび：fw（フリーワード）で検索
-    { id: "gnavi", label: "ぐるなび（サイト内検索）",
-      build: (q) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(q)}` },
+// --- サイト定義（ここを増やすとチェックボックスも増えます） ---
+const SITES = [
+  { id: "tabelog", label: "食べログ（サイト内検索）",
+    build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
 
-    // ホットペッパー：店名の“直URL検索”は仕様が変わりやすいので Google site: を採用
-    { id: "hotpepper", label: "ホットペッパー（Google site:）",
-      build: (q) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${q}`)}` },
+  { id: "gnavi", label: "ぐるなび（サイト内検索）",
+    build: (q) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(q)}` },
 
-    // Googleマップ：公式の Maps URLs 検索
-    { id: "gmap", label: "Googleマップ",
-      build: (q) => `https://www.google.com/maps/search/?api=1&query=${enc(q)}` },
+  { id: "hotpepper", label: "ホットペッパー（Google site:）",
+    build: (q) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${q}`)}` },
 
-    // 例：他サイトも足せます（必要なら有効化）
-    // { id: "retty", label: "Retty（Google site:）",
-    //   build: (q) => `https://www.google.com/search?q=${enc(`site:retty.me ${q}`)}` },
-  ];
+  { id: "gmap", label: "Googleマップ",
+    build: (q) => `https://www.google.com/maps/search/?api=1&query=${enc(q)}` },
+
+  // 追加① くふうトリップ（旧RETRIP相当）：安定重視で site: 検索
+  { id: "kufu_trip", label: "くふうトリップ（Google site:）",
+    build: (q) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${q}`)}` },
+
+  // 追加② TripAdvisor：安定重視で site: 検索
+  { id: "tripadvisor", label: "TripAdvisor（Google site:）",
+    build: (q) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${q}`)}` },
+
+  // 追加③ Retty：site: 検索
+  { id: "retty", label: "Retty（Google site:）",
+    build: (q) => `https://www.google.com/search?q=${enc(`site:retty.me ${q}`)}` },
+
+  // 追加④ Instagram：ハッシュタグページを直接開く
+  { id: "instagram_hashtag", label: "Instagram（#ハッシュタグ）",
+    build: (q) => {
+      const tag = normalizeHashtag(q);
+      if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${q}`)}`;
+      return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
+    } },
+
+  // 保険：InstagramをGoogleで #検索（タグ化が合わない店名対策）
+  { id: "instagram_google_tag", label: "Instagram（Googleで #検索）",
+    build: (q) => `https://www.google.com/search?q=${enc(`site:instagram.com "#${q}"`)}` },
+];
 
   const $sites = document.getElementById("sites");
   const $q = document.getElementById("q");
