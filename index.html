@@ -3,34 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>グルメ横断検索くん</title></title>
+  <title>飲食店 横断検索リンク生成</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; line-height: 1.5; margin: 24px; }
     h1 { margin: 0 0 12px; font-size: 20px; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    input[type="text"] { padding: 10px 12px; min-width: min(560px, 100%); font-size: 16px; }
+    input[type="text"] { padding: 10px 12px; font-size: 16px; }
+    #q { min-width: min(420px, 100%); }
+    #region { min-width: min(220px, 100%); }
     button { padding: 10px 12px; font-size: 14px; cursor: pointer; }
     .sites { margin: 14px 0 10px; display: grid; gap: 8px; }
     .sites label { display: flex; gap: 8px; align-items: center; }
-    .note { color: #555; font-size: 12px; margin-top: 6px; }
     ul { padding-left: 18px; }
     li { margin: 6px 0; }
     .muted { color:#666; font-size: 12px; }
     .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 14px; }
-    .urltext { display: none; }
+    .history { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip {
+      border: 1px solid #ddd; border-radius: 999px;
+      padding: 6px 10px; background: #fff; cursor: pointer;
+      font-size: 13px;
+    }
+    .chip:hover { background: #f7f7f7; }
+    .chip small { color:#666; margin-left: 6px; }
+    .spacer { flex: 1; }
   </style>
 </head>
 <body>
-  <h1>グルメ横断検索くん</h1>
+  <h1>飲食店 横断検索リンク生成</h1>
 
   <div class="row">
-    <input id="q" type="text" placeholder="店名を入力（例：〇〇食堂、必要に応じて地域）" />
+    <input id="q" type="text" placeholder="店名（例：〇〇食堂）" />
+    <input id="region" type="text" placeholder="地域（例：渋谷 / 新宿 / 横浜）※任意" />
     <button id="gen">リンク生成</button>
   </div>
 
   <div class="box">
-    <div class="muted">検索先（チェックしたものだけリンク生成）</div>
+    <div class="row">
+      <div class="muted">検索先（チェックしたものだけリンク生成）</div>
+      <div class="spacer"></div>
+      <button id="checkAll" title="全サイトにチェック">全選択</button>
+      <button id="uncheckAll" title="全サイトのチェックを外す">全解除</button>
+    </div>
     <div id="sites" class="sites"></div>
+  </div>
+
+  <div class="box">
+    <div class="row">
+      <div class="muted">検索履歴（タップで再検索）</div>
+      <div class="spacer"></div>
+      <button id="clearHistory">履歴をクリア</button>
+    </div>
+    <div id="history" class="history"></div>
   </div>
 
   <div class="box">
@@ -41,74 +65,172 @@
 <script>
   const enc = (s) => encodeURIComponent((s ?? "").trim());
 
-// ハッシュタグ用：#や空白などを除去してタグ化
-const normalizeHashtag = (s) =>
-  (s ?? "")
-    .trim()
-    .replace(/[＃#]/g, "")
-    .replace(/\s+/g, "")     // スペース除去
-    .replace(/[・.]/g, "");  // 必要なら調整
+  // --- localStorage keys ---
+  const STORAGE_KEYS = {
+    sitePrefs: "xb_site_prefs_v1",
+    history: "xb_history_v1",
+  };
 
-// --- サイト定義（ここを増やすとチェックボックスも増えます） ---
-const SITES = [
-  { id: "tabelog", label: "食べログ",
-     build: (q) => `https://tabelog.com/rstLst/?sk=${enc(q)}&sw=${enc(q)}` },
+  // --- helpers ---
+  const safeJsonParse = (s, fallback) => {
+    try { return JSON.parse(s); } catch { return fallback; }
+  };
 
-  { id: "gnavi", label: "ぐるなび",
-    build: (q) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(q)}` },
+  // ハッシュタグ用：#や空白などを除去してタグ化（地域は入れない）
+  const normalizeHashtag = (s) =>
+    (s ?? "")
+      .trim()
+      .replace(/[＃#]/g, "")
+      .replace(/\s+/g, "")
+      .replace(/[・.]/g, "");
 
-  { id: "hotpepper", label: "ホットペッパー",
-    build: (q) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${q}`)}` },
+  // クエリ組み立て（多くのサイトは「店名 + 地域」が強い）
+  const buildQuery = (name, region) => {
+    const n = (name ?? "").trim();
+    const r = (region ?? "").trim();
+    return r ? `${n} ${r}` : n;
+  };
 
-  { id: "gmap", label: "Googleマップ",
-    build: (q) => `https://www.google.com/maps/search/?api=1&query=${enc(q)}` },
+  // --- サイト定義（追加はここ） ---
+  // build(ctx): ctx = { name, region, query }
+  const SITES = [
+    { id: "tabelog", label: "食べログ（サイト内検索）",
+      build: (ctx) => `https://tabelog.com/rstLst/?sk=${enc(ctx.query)}&sw=${enc(ctx.query)}` },
 
-  { id: "yahoomap", label: "Yahoo!マップ",
-  build: (q) => `https://map.yahoo.co.jp/search?q=${enc(q)}` },
+    { id: "gnavi", label: "ぐるなび（サイト内検索）",
+      build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
 
-  // 追加① くふうトリップ（旧RETRIP相当）：安定重視で site: 検索
-  { id: "kufu_trip", label: "くふうトリップ",
-    build: (q) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${q}`)}` },
+    { id: "hotpepper", label: "ホットペッパー（Google site:）",
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
 
-  // 追加② TripAdvisor：安定重視で site: 検索
-  { id: "tripadvisor", label: "TripAdvisor",
-    build: (q) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${q}`)}` },
+    { id: "gmap", label: "Googleマップ",
+      build: (ctx) => `https://www.google.com/maps/search/?api=1&query=${enc(ctx.query)}` },
 
-  // 追加③ Retty：site: 検索
-  { id: "retty", label: "Retty",
-    build: (q) => `https://www.google.com/search?q=${enc(`site:retty.me ${q}`)}` },
+    { id: "yahoomap", label: "Yahoo!マップ",
+      build: (ctx) => `https://map.yahoo.co.jp/search?q=${enc(ctx.query)}` },
 
-  // 追加④ Instagram：ハッシュタグページを直接開く
-  { id: "instagram_hashtag", label: "Instagram（#ハッシュタグ）",
-    build: (q) => {
-      const tag = normalizeHashtag(q);
-      if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${q}`)}`;
-      return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
-    } },
+    { id: "kufu_trip", label: "くふうトリップ（Google site:）",
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
 
-  // 保険：InstagramをGoogleで #検索（タグ化が合わない店名対策）
-  { id: "instagram_google_tag", label: "Instagram（Google検索）",
-    build: (q) => `https://www.google.com/search?q=${enc(`site:instagram.com "#${q}"`)}` },
-];
+    { id: "tripadvisor", label: "TripAdvisor（Google site:）",
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
 
+    { id: "retty", label: "Retty（Google site:）",
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
+
+    { id: "instagram_hashtag", label: "Instagram（#ハッシュタグ）",
+      build: (ctx) => {
+        const tag = normalizeHashtag(ctx.name); // 店名だけをタグに
+        if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${ctx.query}`)}`;
+        return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
+      } },
+
+    { id: "instagram_google_tag", label: "Instagram（Googleで #検索）",
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:instagram.com "#${ctx.name}" ${ctx.region ? ctx.region : ""}`)}` },
+  ];
+
+  // --- DOM ---
   const $sites = document.getElementById("sites");
   const $q = document.getElementById("q");
+  const $region = document.getElementById("region");
   const $out = document.getElementById("out");
+  const $history = document.getElementById("history");
 
-  // チェックボックス生成
-  for (const s of SITES) {
-    const label = document.createElement("label");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = true;
-    cb.dataset.siteId = s.id;
+  // --- prefs load/save ---
+  function loadSitePrefs() {
+    const raw = localStorage.getItem(STORAGE_KEYS.sitePrefs);
+    return safeJsonParse(raw, null); // null => default
+  }
+  function saveSitePrefs(prefs) {
+    localStorage.setItem(STORAGE_KEYS.sitePrefs, JSON.stringify(prefs));
+  }
+  function collectSitePrefsFromUI() {
+    const prefs = {};
+    for (const cb of $sites.querySelectorAll("input[type=checkbox]")) {
+      prefs[cb.dataset.siteId] = cb.checked;
+    }
+    return prefs;
+  }
 
-    const span = document.createElement("span");
-    span.textContent = s.label;
+  // --- history load/save/render ---
+  function loadHistory() {
+    const raw = localStorage.getItem(STORAGE_KEYS.history);
+    const arr = safeJsonParse(raw, []);
+    return Array.isArray(arr) ? arr : [];
+  }
+  function saveHistory(arr) {
+    localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(arr));
+  }
+  function formatHistoryLabel(item) {
+    const base = item.name;
+    return item.region ? `${base}（${item.region}）` : base;
+  }
+  function renderHistory() {
+    const items = loadHistory();
+    $history.innerHTML = "";
+    if (!items.length) {
+      const span = document.createElement("span");
+      span.className = "muted";
+      span.textContent = "まだ履歴はありません";
+      $history.appendChild(span);
+      return;
+    }
+    for (const it of items) {
+      const btn = document.createElement("button");
+      btn.className = "chip";
+      btn.type = "button";
+      btn.textContent = formatHistoryLabel(it);
+      btn.addEventListener("click", () => {
+        $q.value = it.name;
+        $region.value = it.region ?? "";
+        generateLinks(true); // history click
+      });
+      $history.appendChild(btn);
+    }
+  }
+  function addToHistory(name, region) {
+    const n = (name ?? "").trim();
+    const r = (region ?? "").trim();
+    if (!n) return;
 
-    label.appendChild(cb);
-    label.appendChild(span);
-    $sites.appendChild(label);
+    const items = loadHistory();
+    // 同一（店名+地域）は先頭に移動
+    const key = `${n}|||${r}`;
+    const filtered = items.filter(x => `${x.name}|||${x.region ?? ""}` !== key);
+    filtered.unshift({ name: n, region: r, ts: Date.now() });
+    const trimmed = filtered.slice(0, 20);
+    saveHistory(trimmed);
+    renderHistory();
+  }
+
+  // --- checkbox UI build ---
+  function buildSiteCheckboxes() {
+    const prefs = loadSitePrefs(); // null if none
+    $sites.innerHTML = "";
+
+    for (const s of SITES) {
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.dataset.siteId = s.id;
+
+      // default: checked, but if saved prefs exist, follow them
+      cb.checked = prefs ? !!prefs[s.id] : true;
+
+      cb.addEventListener("change", () => {
+        saveSitePrefs(collectSitePrefsFromUI());
+      });
+
+      const span = document.createElement("span");
+      span.textContent = s.label;
+
+      label.appendChild(cb);
+      label.appendChild(span);
+      $sites.appendChild(label);
+    }
+
+    // 初回に保存がない場合は、今の状態を保存しておく
+    if (!prefs) saveSitePrefs(collectSitePrefsFromUI());
   }
 
   function selectedSites() {
@@ -117,12 +239,16 @@ const SITES = [
     return SITES.filter(s => checkedIds.has(s.id));
   }
 
-  function generateLinks() {
-    const q = $q.value.trim();
-    $out.innerHTML = "";
-    if (!q) return [];
+  function generateLinks(fromHistoryClick = false) {
+    const name = $q.value.trim();
+    const region = $region.value.trim();
+    const query = buildQuery(name, region);
 
-    const links = selectedSites().map(s => ({ label: s.label, url: s.build(q) }));
+    $out.innerHTML = "";
+    if (!name) return [];
+
+    const ctx = { name, region, query };
+    const links = selectedSites().map(s => ({ label: s.label, url: s.build(ctx) }));
 
     for (const item of links) {
       const li = document.createElement("li");
@@ -132,22 +258,41 @@ const SITES = [
       a.rel = "noopener noreferrer";
       a.textContent = item.label;
       li.appendChild(a);
-
-      const small = document.createElement("div");
-      small.className = "urltext";
-      small.textContent = item.url;
-      li.appendChild(small);
-
       $out.appendChild(li);
     }
+
+    // 履歴追加（履歴クリック時も更新してOKだが、無限増殖はしないよう同一は移動）
+    addToHistory(name, region);
+
     return links;
   }
 
-  document.getElementById("gen").addEventListener("click", generateLinks);
-  
+  // --- buttons ---
+  document.getElementById("gen").addEventListener("click", () => generateLinks(false));
 
-  // Enterでも生成
-  $q.addEventListener("keydown", (e) => { if (e.key === "Enter") generateLinks(); });
+  document.getElementById("clearHistory").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEYS.history);
+    renderHistory();
+  });
+
+  document.getElementById("checkAll").addEventListener("click", () => {
+    for (const cb of $sites.querySelectorAll("input[type=checkbox]")) cb.checked = true;
+    saveSitePrefs(collectSitePrefsFromUI());
+  });
+
+  document.getElementById("uncheckAll").addEventListener("click", () => {
+    for (const cb of $sites.querySelectorAll("input[type=checkbox]")) cb.checked = false;
+    saveSitePrefs(collectSitePrefsFromUI());
+  });
+
+  // Enterでも生成（店名/地域どちらでも）
+  function onEnter(e) { if (e.key === "Enter") generateLinks(false); }
+  $q.addEventListener("keydown", onEnter);
+  $region.addEventListener("keydown", onEnter);
+
+  // init
+  buildSiteCheckboxes();
+  renderHistory();
 </script>
 </body>
 </html>
