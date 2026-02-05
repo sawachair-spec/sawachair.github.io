@@ -140,9 +140,6 @@
         if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${ctx.query}`)}`;
         return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
       } },
-
-    { id: "instagram_google_tag", label: "Instagram（Googleで #検索）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:instagram.com "#${ctx.name}" ${ctx.region ? ctx.region : ""}`)}` },
   ];
 
   const $sites = document.getElementById("sites");
