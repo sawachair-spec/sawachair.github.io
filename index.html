@@ -69,6 +69,7 @@
       <div class="muted">検索履歴（クリックで再検索 / ×で個別削除）</div>
       <div class="spacer"></div>
       <button id="clearHistory">履歴をクリア</button>
+      <button id="toggleHistoryOrder">並び：新しい順</button>
     </div>
     <div id="history" class="history"></div>
   </div>
@@ -77,6 +78,7 @@
   const enc = (s) => encodeURIComponent((s ?? "").trim());
 
   const STORAGE_KEYS = {
+    historyOrder: "xb_history_order_v1",
     sitePrefs: "xb_site_prefs_v2",
     history: "xb_history_v1",
   };
@@ -227,6 +229,16 @@
     return Array.isArray(arr) ? arr : [];
   }
   function saveHistory(arr) {
+    // ---- history order (new / old) ----
+function getHistoryOrder() {
+  return localStorage.getItem(STORAGE_KEYS.historyOrder) || "new"; // "new" or "old"
+}
+function setHistoryOrder(v) {
+  localStorage.setItem(STORAGE_KEYS.historyOrder, v);
+}
+function historyOrderLabel(v) {
+  return v === "old" ? "並び：古い順" : "並び：新しい順";
+}
     localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(arr));
   }
   function historyKey(name, region) {
@@ -234,6 +246,9 @@
   }
   function renderHistory() {
     const items = loadHistory();
+    // 表示順切替（old のときは古い順＝配列を反転）
+const order = getHistoryOrder();
+if (order === "old") items.reverse();
     $history.innerHTML = "";
     if (!items.length) {
       const span = document.createElement("span");
@@ -351,8 +366,9 @@
   $region.addEventListener("keydown", onEnter);
 
   // init
-  buildSiteCheckboxes();
-  renderHistory();
+buildSiteCheckboxes();
+refreshHistoryOrderButton();
+renderHistory();
 </script>
 </body>
 </html>
