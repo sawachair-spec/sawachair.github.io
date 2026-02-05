@@ -103,8 +103,14 @@
 
   // ctx = { name, region, query }  ※query は「店名 + 地域」か「店名のみ」
   const SITES = [
-    { id: "tabelog", label: "食べログ", useRegionDefault: true,
-      build: (ctx) => `https://tabelog.com/rstLst/?sk=${enc(ctx.query)}&sw=${enc(ctx.query)}` },
+  { id: "tabelog", label: "食べログ", useRegionDefault: true,
+  build: (ctx) => {
+    // 店名はキーワード(sk/sw)、地域はエリア・駅(sa)へ
+    // sa パラメータ自体は食べログのURLでも使われています（例：sa= が付いている） [oai_citation:1‡食べログ](https://s.tabelog.com/tokyo/A1323/A132301/rstLst/cond07-01-00?SrtT=trend&keyword=%E3%82%BD%E3%83%BC%E3%82%BB%E3%83%BC%E3%82%B8&sa=&sk=%E3%82%BD%E3%83%BC%E3%82%BB%E3%83%BC%E3%82%B8&srchTg=2&sw=%E3%82%BD%E3%83%BC%E3%82%BB%E3%83%BC%E3%82%B8&utm_source=chatgpt.com)
+    const name = (ctx.name ?? "").trim();
+    const area = (ctx.region ?? "").trim();
+    return `https://tabelog.com/rstLst/?sa=${enc(area)}&sk=${enc(name)}&sw=${enc(name)}`;
+  } },
 
     { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
       build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
