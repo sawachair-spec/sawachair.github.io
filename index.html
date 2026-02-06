@@ -112,26 +112,14 @@
     return `https://tabelog.com/rstLst/?sa=${enc(area)}&sk=${enc(name)}&sw=${enc(name)}`;
   } },
 
-    { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
-      build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
-
-    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
-
     { id: "gmap", label: "Googleマップ", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/maps/search/?api=1&query=${enc(ctx.query)}` },
 
     { id: "yahoomap", label: "Yahoo!マップ", useRegionDefault: true,
       build: (ctx) => `https://map.yahoo.co.jp/search?q=${enc(ctx.query)}` },
 
-    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
-
     { id: "tripadvisor", label: "TripAdvisor（Google site:）", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
-
-    { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
 
     // Instagramは2系統：ハッシュタグ（店名のみが基本） / Googleで #検索
     { id: "instagram_hashtag", label: "Instagram（#ハッシュタグ）", useRegionDefault: false,
@@ -140,6 +128,19 @@
         if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${ctx.query}`)}`;
         return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
       } },
+    
+    { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
+      build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
+
+    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
+
+    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
+
+        { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
+    
   ];
 
   const $sites = document.getElementById("sites");
