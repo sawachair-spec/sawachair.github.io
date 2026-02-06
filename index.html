@@ -111,15 +111,6 @@
     { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
       build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
 
-    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
-
-    { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
-
-    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
-
     { id: "tripadvisor", label: "TripAdvisor（Google site:）", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
 
@@ -146,6 +137,15 @@
         return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
       }
     },
+
+    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
+
+    { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
+
+    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
   ];
 
   const $sites = document.getElementById("sites");
