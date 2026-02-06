@@ -28,14 +28,9 @@
     /* history chips */
     .history { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .chipWrap { display: inline-flex; align-items: center; border: 1px solid #ddd; border-radius: 999px; overflow: hidden; background: #fff; }
-    .chipBtn {
-      border: 0; background: transparent; padding: 7px 10px; cursor: pointer; font-size: 13px;
-    }
+    .chipBtn { border: 0; background: transparent; padding: 7px 10px; cursor: pointer; font-size: 13px; }
     .chipBtn:hover { background: #f7f7f7; }
-    .chipDel {
-      border: 0; border-left: 1px solid #ddd; background: transparent;
-      padding: 7px 10px; cursor: pointer; font-size: 14px; line-height: 1;
-    }
+    .chipDel { border: 0; border-left: 1px solid #ddd; background: transparent; padding: 7px 10px; cursor: pointer; font-size: 14px; line-height: 1; }
     .chipDel:hover { background: #ffecec; }
   </style>
 </head>
@@ -58,7 +53,6 @@
     <div id="sites" class="sites"></div>
   </div>
 
-  <!-- ★ 生成リンクを履歴より上に移動 -->
   <div class="box">
     <div class="muted">生成リンク</div>
     <ul id="out"></ul>
@@ -77,9 +71,10 @@
 <script>
   const enc = (s) => encodeURIComponent((s ?? "").trim());
 
+  // 以前の壊れた保存データの影響を避けたい場合は v を上げる
   const STORAGE_KEYS = {
     historyOrder: "xb_history_order_v1",
-    sitePrefs: "xb_site_prefs_v2",
+    sitePrefs: "xb_site_prefs_v3",
     history: "xb_history_v1",
   };
 
@@ -101,16 +96,32 @@
     return r ? `${n} ${r}` : n;
   };
 
-  // ctx = { name, region, query }  ※query は「店名 + 地域」か「店名のみ」
+  // ctx = { name, region, query }
+  // query は基本「店名 + 地域」(地域トグルON) or 「店名」(OFF)
   const SITES = [
-  { id: "tabelog", label: "食べログ", useRegionDefault: true,
-  build: (ctx) => {
-    // 店名はキーワード(sk/sw)、地域はエリア・駅(sa)へ
-    // sa パラメータ自体は食べログのURLでも使われています（例：sa= が付いている） [oai_citation:1‡食べログ](https://s.tabelog.com/tokyo/A1323/A132301/rstLst/cond07-01-00?SrtT=trend&keyword=%E3%82%BD%E3%83%BC%E3%82%BB%E3%83%BC%E3%82%B8&sa=&sk=%E3%82%BD%E3%83%BC%E3%82%BB%E3%83%BC%E3%82%B8&srchTg=2&sw=%E3%82%BD%E3%83%BC%E3%82%BB%E3%83%BC%E3%82%B8&utm_source=chatgpt.com)
-    const name = (ctx.name ?? "").trim();
-    const area = (ctx.region ?? "").trim();
-    return `https://tabelog.com/rstLst/?sa=${enc(area)}&sk=${enc(name)}&sw=${enc(name)}`;
-  } },
+    // ★食べログ：店名はキーワード(sk/sw)、地域はエリア・駅(sa)
+    { id: "tabelog", label: "食べログ", useRegionDefault: true,
+      build: (ctx) => {
+        const name = (ctx.name ?? "").trim();
+        const area = (ctx.region ?? "").trim(); // 地域トグルOFFなら "" が入る
+        return `https://tabelog.com/rstLst/?sa=${enc(area)}&sk=${enc(name)}&sw=${enc(name)}`;
+      }
+    },
+
+    { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
+      build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
+
+    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
+
+    { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
+
+    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
+
+    { id: "tripadvisor", label: "TripAdvisor（Google site:）", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
 
     { id: "gmap", label: "Googleマップ", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/maps/search/?api=1&query=${enc(ctx.query)}` },
@@ -118,29 +129,23 @@
     { id: "yahoomap", label: "Yahoo!マップ", useRegionDefault: true,
       build: (ctx) => `https://map.yahoo.co.jp/search?q=${enc(ctx.query)}` },
 
-    { id: "tripadvisor", label: "TripAdvisor（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
-
-    // Instagramは2系統：ハッシュタグ（店名のみが基本） / Googleで #検索
-    { id: "instagram_hashtag", label: "Instagram（#ハッシュタグ）", useRegionDefault: false,
+    // Instagram：Google site検索なし（削除済み）
+    // 店名タグ
+    { id: "instagram_hashtag", label: "Instagram（#店名）", useRegionDefault: false,
       build: (ctx) => {
-        const tag = normalizeHashtag(ctx.name); // ここは常に店名のみでタグ化
-        if (!tag) return `https://www.google.com/search?q=${enc(`site:instagram.com ${ctx.query}`)}`;
+        const tag = normalizeHashtag(ctx.name);
+        if (!tag) return "https://www.instagram.com/explore/";
         return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
-      } },
-    
-    { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
-      build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
-
-    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
-
-    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
-
-        { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
-    
+      }
+    },
+    // 地域タグ（地域入力時に使う）
+    { id: "instagram_region_hashtag", label: "Instagram（#地域）", useRegionDefault: true,
+      build: (ctx) => {
+        const tag = normalizeHashtag(ctx.region);
+        if (!tag) return "https://www.instagram.com/explore/";
+        return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
+      }
+    },
   ];
 
   const $sites = document.getElementById("sites");
@@ -148,6 +153,17 @@
   const $region = document.getElementById("region");
   const $out = document.getElementById("out");
   const $history = document.getElementById("history");
+
+  // ---- history order (new / old) ----
+  function getHistoryOrder() {
+    return localStorage.getItem(STORAGE_KEYS.historyOrder) || "new"; // "new" or "old"
+  }
+  function setHistoryOrder(v) {
+    localStorage.setItem(STORAGE_KEYS.historyOrder, v);
+  }
+  function historyOrderLabel(v) {
+    return v === "old" ? "並び：古い順" : "並び：新しい順";
+  }
 
   // ---- site prefs ----
   // prefs format: { [siteId]: { enabled: boolean, useRegion: boolean } }
@@ -233,26 +249,19 @@
     return Array.isArray(arr) ? arr : [];
   }
   function saveHistory(arr) {
-    // ---- history order (new / old) ----
-function getHistoryOrder() {
-  return localStorage.getItem(STORAGE_KEYS.historyOrder) || "new"; // "new" or "old"
-}
-function setHistoryOrder(v) {
-  localStorage.setItem(STORAGE_KEYS.historyOrder, v);
-}
-function historyOrderLabel(v) {
-  return v === "old" ? "並び：古い順" : "並び：新しい順";
-}
     localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(arr));
   }
   function historyKey(name, region) {
     return `${(name ?? "").trim()}|||${(region ?? "").trim()}`;
   }
+
   function renderHistory() {
     const items = loadHistory();
+
     // 表示順切替（old のときは古い順＝配列を反転）
-const order = getHistoryOrder();
-if (order === "old") items.reverse();
+    const order = getHistoryOrder();
+    if (order === "old") items.reverse();
+
     $history.innerHTML = "";
     if (!items.length) {
       const span = document.createElement("span");
@@ -355,6 +364,18 @@ if (order === "old") items.reverse();
     renderHistory();
   });
 
+  // 履歴の並び順トグル
+  const $toggleHistoryOrder = document.getElementById("toggleHistoryOrder");
+  function refreshHistoryOrderButton() {
+    $toggleHistoryOrder.textContent = historyOrderLabel(getHistoryOrder());
+  }
+  $toggleHistoryOrder.addEventListener("click", () => {
+    const next = getHistoryOrder() === "new" ? "old" : "new";
+    setHistoryOrder(next);
+    refreshHistoryOrderButton();
+    renderHistory();
+  });
+
   document.getElementById("checkAll").addEventListener("click", () => {
     for (const cb of $sites.querySelectorAll(`input[data-type="enabled"]`)) cb.checked = true;
     saveSitePrefs(collectSitePrefsFromUI());
@@ -370,9 +391,9 @@ if (order === "old") items.reverse();
   $region.addEventListener("keydown", onEnter);
 
   // init
-buildSiteCheckboxes();
-refreshHistoryOrderButton();
-renderHistory();
+  buildSiteCheckboxes();
+  refreshHistoryOrderButton();
+  renderHistory();
 </script>
 </body>
 </html>
