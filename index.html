@@ -129,14 +129,6 @@
         return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
       }
     },
-    // 地域タグ（地域入力時に使う）
-    { id: "instagram_region_hashtag", label: "Instagram（#地域）", useRegionDefault: true,
-      build: (ctx) => {
-        const tag = normalizeHashtag(ctx.region);
-        if (!tag) return "https://www.instagram.com/explore/";
-        return `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
-      }
-    },
 
     { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
