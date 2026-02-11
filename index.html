@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>飲食店 横断検索リンク生成</title>
+  <title>飲食店検索 横断くん</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; line-height: 1.5; margin: 24px; }
     h1 { margin: 0 0 12px; font-size: 20px; }
@@ -40,7 +40,7 @@
   <div class="row">
     <input id="q" type="text" placeholder="店名（例：〇〇食堂）" />
     <input id="region" type="text" placeholder="地域（例：渋谷 / 新宿 / 横浜）※任意" />
-    <button id="gen">リンク生成</button>
+    <button id="gen">検索</button>
   </div>
 
   <div class="box">
@@ -54,7 +54,8 @@
   </div>
 
   <div class="box">
-    <div class="muted">生成リンク</div>
+    <div class=>検索結果
+    </div>
     <ul id="out"></ul>
   </div>
 
@@ -107,11 +108,14 @@
         return `https://tabelog.com/rstLst/?sa=${enc(area)}&sk=${enc(name)}&sw=${enc(name)}`;
       }
     },
-
+    
+ { id: "hotpepper", label: "ホットペッパー", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
+    
     { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
       build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
 
-    { id: "tripadvisor", label: "TripAdvisor（Google site:）", useRegionDefault: true,
+    { id: "tripadvisor", label: "TripAdvisor ", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
 
     { id: "gmap", label: "Googleマップ", useRegionDefault: true,
@@ -122,7 +126,7 @@
 
     // Instagram：Google site検索なし（削除済み）
     // 店名タグ
-    { id: "instagram_hashtag", label: "Instagram（#店名）", useRegionDefault: false,
+    { id: "instagram_hashtag", label: "Instagram", useRegionDefault: false,
       build: (ctx) => {
         const tag = normalizeHashtag(ctx.name);
         if (!tag) return "https://www.instagram.com/explore/";
@@ -130,13 +134,10 @@
       }
     },
 
-    { id: "hotpepper", label: "ホットペッパー（Google site:）", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
-
-    { id: "retty", label: "Retty（Google site:）", useRegionDefault: true,
+    { id: "retty", label: "Retty ", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
 
-    { id: "kufu_trip", label: "くふうトリップ（Google site:）", useRegionDefault: true,
+    { id: "kufu_trip", label: "くふうトリップ ", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
   ];
 
