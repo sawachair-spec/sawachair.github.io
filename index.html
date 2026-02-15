@@ -18,6 +18,18 @@
     .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin-top: 14px; }
     .spacer { flex: 1; }
 
+    /* input with clear button */
+    .field { position: relative; display: inline-block; }
+    .field input { padding-right: 40px; }
+    .clearBtn {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 999px;
+      border: 1px solid #ddd; background: #fff; cursor: pointer;
+      font-size: 16px; line-height: 1;
+      display: none;
+    }
+    .clearBtn:hover { background: #f7f7f7; }
+
     /* site rows */
     .sites { margin: 14px 0 10px; display: grid; gap: 10px; }
     .siteRow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -38,8 +50,16 @@
   <h1>飲食店検索 横断くん</h1>
 
   <div class="row">
-    <input id="q" type="text" placeholder="店名（例：〇〇食堂）" />
-    <input id="region" type="text" placeholder="地域（例：渋谷 / 新宿 / 横浜）※任意" />
+    <div class="field">
+      <input id="q" type="text" placeholder="店名（例：〇〇食堂）" />
+      <button id="clearQ" class="clearBtn" type="button" aria-label="店名を消す">×</button>
+    </div>
+
+    <div class="field">
+      <input id="region" type="text" placeholder="地域（例：渋谷 / 新宿 / 横浜）※任意" />
+      <button id="clearRegion" class="clearBtn" type="button" aria-label="地域を消す">×</button>
+    </div>
+
     <button id="gen">検索</button>
   </div>
 
@@ -54,8 +74,7 @@
   </div>
 
   <div class="box">
-    <div class=>検索結果
-    </div>
+    <div class="muted">検索結果</div>
     <ul id="out"></ul>
   </div>
 
@@ -72,10 +91,9 @@
 <script>
   const enc = (s) => encodeURIComponent((s ?? "").trim());
 
-  // 以前の壊れた保存データの影響を避けたい場合は v を上げる
   const STORAGE_KEYS = {
     historyOrder: "xb_history_order_v1",
-    sitePrefs: "xb_site_prefs_v3",
+    sitePrefs: "xb_site_prefs_v4",   // ←サイト並び・構成を変えたので v を上げ
     history: "xb_history_v1",
   };
 
@@ -97,36 +115,36 @@
     return r ? `${n} ${r}` : n;
   };
 
+  // ★ラベル順を指定どおりに整列
   // ctx = { name, region, query }
-  // query は基本「店名 + 地域」(地域トグルON) or 「店名」(OFF)
   const SITES = [
-    // ★食べログ：店名はキーワード(sk/sw)、地域はエリア・駅(sa)
+    // 1) 食べログ
     { id: "tabelog", label: "食べログ", useRegionDefault: true,
       build: (ctx) => {
         const name = (ctx.name ?? "").trim();
-        const area = (ctx.region ?? "").trim(); // 地域トグルOFFなら "" が入る
+        const area = (ctx.region ?? "").trim(); // 地域トグルOFFなら ""
         return `https://tabelog.com/rstLst/?sa=${enc(area)}&sk=${enc(name)}&sw=${enc(name)}`;
       }
     },
-    
- { id: "hotpepper", label: "ホットペッパー", useRegionDefault: true,
+
+    // 2) hotpepper（実装はGoogle site検索のまま、表記だけ簡潔に）
+    { id: "hotpepper", label: "hotpepper", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:hotpepper.jp ${ctx.query}`)}` },
-    
+
+    // 3) Googlemap
+    { id: "gmap", label: "Googlemap", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/maps/search/?api=1&query=${enc(ctx.query)}` },
+
+    // 4) yahooMAP
+    { id: "yahoomap", label: "yahooMAP", useRegionDefault: true,
+      build: (ctx) => `https://map.yahoo.co.jp/search?q=${enc(ctx.query)}` },
+
+    // 5) ぐるなび
     { id: "gnavi", label: "ぐるなび", useRegionDefault: true,
       build: (ctx) => `https://r.gnavi.co.jp/area/jp/rs/?fw=${enc(ctx.query)}` },
 
-    { id: "tripadvisor", label: "TripAdvisor ", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
-
-    { id: "gmap", label: "Googleマップ", useRegionDefault: true,
-      build: (ctx) => `https://www.google.com/maps/search/?api=1&query=${enc(ctx.query)}` },
-
-    { id: "yahoomap", label: "Yahoo!マップ", useRegionDefault: true,
-      build: (ctx) => `https://map.yahoo.co.jp/search?q=${enc(ctx.query)}` },
-
-    // Instagram：Google site検索なし（削除済み）
-    // 店名タグ
-    { id: "instagram_hashtag", label: "Instagram", useRegionDefault: false,
+    // 6) instagram（#店名表記は削除）
+    { id: "instagram", label: "instagram", useRegionDefault: false,
       build: (ctx) => {
         const tag = normalizeHashtag(ctx.name);
         if (!tag) return "https://www.instagram.com/explore/";
@@ -134,10 +152,16 @@
       }
     },
 
-    { id: "retty", label: "Retty ", useRegionDefault: true,
+    // 7) TripAdvisor（実装はGoogle site検索のまま、表記だけ簡潔に）
+    { id: "tripadvisor", label: "TripAdvisor", useRegionDefault: true,
+      build: (ctx) => `https://www.google.com/search?q=${enc(`site:tripadvisor.jp ${ctx.query}`)}` },
+
+    // 8) retty（実装はGoogle site検索のまま、表記だけ簡潔に）
+    { id: "retty", label: "retty", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:retty.me ${ctx.query}`)}` },
 
-    { id: "kufu_trip", label: "くふうトリップ ", useRegionDefault: true,
+    // 9) くふうトリップ（実装はGoogle site検索のまま、表記だけ簡潔に）
+    { id: "kufu_trip", label: "くふうトリップ", useRegionDefault: true,
       build: (ctx) => `https://www.google.com/search?q=${enc(`site:retrip.jp OR site:rtrp.jp ${ctx.query}`)}` },
   ];
 
@@ -146,6 +170,19 @@
   const $region = document.getElementById("region");
   const $out = document.getElementById("out");
   const $history = document.getElementById("history");
+  const $clearQ = document.getElementById("clearQ");
+  const $clearRegion = document.getElementById("clearRegion");
+
+  // ---- input clear buttons ----
+  function syncClearButtons() {
+    $clearQ.style.display = $q.value ? "inline-flex" : "none";
+    $clearRegion.style.display = $region.value ? "inline-flex" : "none";
+  }
+  $q.addEventListener("input", syncClearButtons);
+  $region.addEventListener("input", syncClearButtons);
+  $clearQ.addEventListener("click", () => { $q.value = ""; syncClearButtons(); $q.focus(); });
+  $clearRegion.addEventListener("click", () => { $region.value = ""; syncClearButtons(); $region.focus(); });
+  syncClearButtons();
 
   // ---- history order (new / old) ----
   function getHistoryOrder() {
@@ -159,7 +196,6 @@
   }
 
   // ---- site prefs ----
-  // prefs format: { [siteId]: { enabled: boolean, useRegion: boolean } }
   function loadSitePrefs() {
     const raw = localStorage.getItem(STORAGE_KEYS.sitePrefs);
     return safeJsonParse(raw, null);
@@ -185,7 +221,6 @@
       const row = document.createElement("div");
       row.className = "siteRow";
 
-      // enable
       const mainLabel = document.createElement("label");
       mainLabel.className = "siteMain";
       const cbEnable = document.createElement("input");
@@ -200,7 +235,6 @@
       mainLabel.appendChild(cbEnable);
       mainLabel.appendChild(span);
 
-      // region toggle
       const regionLabel = document.createElement("label");
       regionLabel.className = "siteRegion";
       const cbRegion = document.createElement("input");
@@ -215,7 +249,6 @@
       regionLabel.appendChild(cbRegion);
       regionLabel.appendChild(rgText);
 
-      // save on change
       const onChange = () => saveSitePrefs(collectSitePrefsFromUI());
       cbEnable.addEventListener("change", onChange);
       cbRegion.addEventListener("change", onChange);
@@ -250,8 +283,6 @@
 
   function renderHistory() {
     const items = loadHistory();
-
-    // 表示順切替（old のときは古い順＝配列を反転）
     const order = getHistoryOrder();
     if (order === "old") items.reverse();
 
@@ -275,6 +306,7 @@
       btn.addEventListener("click", () => {
         $q.value = it.name;
         $region.value = it.region ?? "";
+        syncClearButtons();
         generateLinks();
       });
 
@@ -350,14 +382,13 @@
   }
 
   // ---- buttons & events ----
-  document.getElementById("gen").addEventListener("click", generateLinks);
+  document.getElementById("gen").addEventListener("click", () => { syncClearButtons(); generateLinks(); });
 
   document.getElementById("clearHistory").addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEYS.history);
     renderHistory();
   });
 
-  // 履歴の並び順トグル
   const $toggleHistoryOrder = document.getElementById("toggleHistoryOrder");
   function refreshHistoryOrderButton() {
     $toggleHistoryOrder.textContent = historyOrderLabel(getHistoryOrder());
@@ -379,7 +410,7 @@
     saveSitePrefs(collectSitePrefsFromUI());
   });
 
-  function onEnter(e) { if (e.key === "Enter") generateLinks(); }
+  function onEnter(e) { if (e.key === "Enter") { syncClearButtons(); generateLinks(); } }
   $q.addEventListener("keydown", onEnter);
   $region.addEventListener("keydown", onEnter);
 
